@@ -5,7 +5,7 @@
 	"private": true,
 	"packageManager": "bun@1.3.2",
 	"scripts": {
-		"dev": "bun --bun --watch ./src/main.ts",
+		"dev": "doppler run -- bun --bun --watch ./src/main.ts",
 		"fmt": "biome check . --write",
 		"fmt:check": "biome check",
 		"db:migrate": "bun --bun run ./src/scripts/migrator.ts"
