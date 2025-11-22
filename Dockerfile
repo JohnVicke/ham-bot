@@ -21,4 +21,4 @@ FROM base
 COPY --from=build /app /app
 
 EXPOSE 3000
-CMD [ "bun", "./src/index.ts" ]
+CMD [ "bun", "./src/main.ts" ]
