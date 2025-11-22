@@ -9,7 +9,7 @@ import {
 	Schedule,
 	Schema,
 } from "effect";
-import { DiscordApi } from "./discord-http";
+import { DiscordHttp } from "./http";
 import { Interaction, type SlashCommand } from "./schemas";
 
 type SocketWriter = (
@@ -96,12 +96,12 @@ type GatewayPayload = Schema.Schema.Type<typeof GatewayPayload>;
 export class DiscordGateway extends Effect.Service<DiscordGateway>()(
 	"DiscordGateway",
 	{
-		dependencies: [DiscordApi.Default],
+		dependencies: [DiscordHttp.Default],
 		effect: Effect.gen(function* () {
 			const authenticated = yield* Ref.make(false);
 
 			const token = yield* Config.redacted("DISCORD_TOKEN");
-			const api = yield* DiscordApi;
+			const api = yield* DiscordHttp;
 			const commandsRef = yield* Ref.make(
 				HashMap.empty<string, Command<any>>(),
 			);

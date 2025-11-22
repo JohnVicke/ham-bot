@@ -2,12 +2,11 @@ import {
 	FetchHttpClient,
 	HttpClient,
 	HttpClientRequest,
-	HttpClientResponse,
 } from "@effect/platform";
 import { Config, Effect, Redacted, Schema } from "effect";
-import { InteractionResponse, SlashCommand } from "./schemas";
+import { SlashCommand } from "./schemas";
 
-export class DiscordApi extends Effect.Service<DiscordApi>()("DiscordApi", {
+export class DiscordHttp extends Effect.Service<DiscordHttp>()("DiscordHttp", {
 	dependencies: [FetchHttpClient.layer],
 	effect: Effect.gen(function* () {
 		const http = yield* HttpClient.HttpClient;
@@ -15,7 +14,7 @@ export class DiscordApi extends Effect.Service<DiscordApi>()("DiscordApi", {
 		const token = yield* Config.redacted("DISCORD_TOKEN");
 		const appId = yield* Config.string("DISCORD_APP_ID");
 
-		const baseUrl = "https://dicord.com/api/v10";
+		const baseUrl = "https://discord.com/api/v10";
 
 		const client = http.pipe(
 			HttpClient.mapRequest(HttpClientRequest.prependUrl(baseUrl)),

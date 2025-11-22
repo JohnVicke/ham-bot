@@ -1,32 +1,36 @@
 import { HttpLayerRouter, HttpServerResponse, Socket } from "@effect/platform";
 import { BunHttpServer, BunRuntime } from "@effect/platform-bun";
-import { Effect, Layer, Logger, } from "effect";
-import { DiscordGateway, type Command, type CommandContext } from "./pkgs/dic/discord-gateway";
+import { Effect, Layer, Logger } from "effect";
+import {
+	DiscordGateway,
+	type Command,
+	type CommandContext,
+} from "./pkgs/dicord/discord-gateway";
 import { Otel } from "./pkgs/otel";
-import type { SlashCommand } from "./pkgs/dic/schemas";
+import type { SlashCommand } from "./pkgs/dicord/schemas";
 
 export const defineCommand = <A>(
-  schema: SlashCommand,
-  handler: (ctx: CommandContext) => Effect.Effect<A>
+	schema: SlashCommand,
+	handler: (ctx: CommandContext) => Effect.Effect<A>,
 ): Command<void> => ({
-  schema,
-  handler: (ctx) => Effect.asVoid(handler(ctx))
+	schema,
+	handler: (ctx) => Effect.asVoid(handler(ctx)),
 });
 
 const pingCommand = defineCommand(
-  {
-    name: "ping",
-    description: "Replies with Pong!"
-  },
-  (ctx) => ctx.respond("Pong!")
+	{
+		name: "ping",
+		description: "Replies with Pong!",
+	},
+	(ctx) => ctx.respond("Pong!"),
 );
 
-const Main = Layer.effectDiscard(
+const Main = Layer.scopedDiscard(
 	Effect.gen(function* () {
 		const gateway = yield* DiscordGateway;
-		yield* gateway.register(pingCommand)
-		yield* gateway.syncCommands
-		yield* gateway.connect();
+		yield* gateway.register(pingCommand);
+		yield* gateway.syncCommands;
+		yield* Effect.forkDaemon(gateway.connect());
 	}),
 );
 

@@ -27,7 +27,6 @@
 		"@opentelemetry/sdk-trace-base": "^2.2.0",
 		"@opentelemetry/sdk-trace-node": "^2.2.0",
 		"@opentelemetry/sdk-trace-web": "^2.2.0",
-		"discord.js": "^14.25.0",
 		"effect": "^3.19.5"
 	}
 }
