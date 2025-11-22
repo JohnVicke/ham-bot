@@ -2,6 +2,7 @@ import {
 	FetchHttpClient,
 	HttpClient,
 	HttpClientRequest,
+	HttpClientResponse,
 } from "@effect/platform";
 import { Config, Effect, Redacted, Schema } from "effect";
 import { SlashCommand } from "./schemas";
@@ -56,6 +57,17 @@ export class DiscordHttp extends Effect.Service<DiscordHttp>()("DiscordHttp", {
 			console.log(res.status);
 		});
 
-		return { syncCommands, respondToInteraction } as const;
+		const getWssUrl = Effect.fn(function* () {
+			return yield* HttpClientRequest.get("/gateway").pipe(
+				client.execute,
+				Effect.flatMap(
+					HttpClientResponse.schemaBodyJson(
+						Schema.Struct({ url: Schema.String }),
+					),
+				),
+			);
+		});
+
+		return { syncCommands, respondToInteraction, getWssUrl } as const;
 	}),
 }) {}

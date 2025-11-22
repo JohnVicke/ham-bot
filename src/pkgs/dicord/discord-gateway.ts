@@ -153,9 +153,9 @@ export class DiscordGateway extends Effect.Service<DiscordGateway>()(
 
 			const connect = () =>
 				Effect.gen(function* () {
-					const ws = yield* Socket.makeWebSocket(
-						"wss://gateway.discord.gg/?v=10&encoding=json",
-					);
+					const url = yield* api.getWssUrl();
+
+					const ws = yield* Socket.makeWebSocket(`${url}/?v=10&encoding=json`);
 
 					const writer = yield* ws.writer;
 
@@ -190,7 +190,9 @@ export class DiscordGateway extends Effect.Service<DiscordGateway>()(
 									const cmd = HashMap.get(commands, decoded.d.data.name);
 
 									if (cmd._tag === "None") {
-									yield* Effect.logWarning("Command not found", {name: decoded.d.data.name})
+										yield* Effect.logWarning("Command not found", {
+											name: decoded.d.data.name,
+										});
 										return;
 									}
 

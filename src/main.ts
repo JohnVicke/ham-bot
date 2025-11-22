@@ -2,12 +2,12 @@ import { HttpLayerRouter, HttpServerResponse, Socket } from "@effect/platform";
 import { BunHttpServer, BunRuntime } from "@effect/platform-bun";
 import { Effect, Layer, Logger } from "effect";
 import {
-	DiscordGateway,
 	type Command,
 	type CommandContext,
+	DiscordGateway,
 } from "./pkgs/dicord/discord-gateway";
-import { Otel } from "./pkgs/otel";
 import type { SlashCommand } from "./pkgs/dicord/schemas";
+import { Otel } from "./pkgs/otel";
 
 export const defineCommand = <A>(
 	schema: SlashCommand,
