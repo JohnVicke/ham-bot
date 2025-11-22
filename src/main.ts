@@ -1,30 +1,32 @@
-import { HttpLayerRouter, HttpServerResponse } from "@effect/platform";
+import { HttpLayerRouter, HttpServerResponse, Socket } from "@effect/platform";
 import { BunHttpServer, BunRuntime } from "@effect/platform-bun";
-import { SlashCommandBuilder } from "discord.js";
-import { Effect, Layer, Logger, pipe } from "effect";
-import { Discord } from "./pkgs/discord";
+import { Effect, Layer, Logger, } from "effect";
+import { DiscordGateway, type Command, type CommandContext } from "./pkgs/dic/discord-gateway";
 import { Otel } from "./pkgs/otel";
+import type { SlashCommand } from "./pkgs/dic/schemas";
+
+export const defineCommand = <A>(
+  schema: SlashCommand,
+  handler: (ctx: CommandContext) => Effect.Effect<A>
+): Command<void> => ({
+  schema,
+  handler: (ctx) => Effect.asVoid(handler(ctx))
+});
+
+const pingCommand = defineCommand(
+  {
+    name: "ping",
+    description: "Replies with Pong!"
+  },
+  (ctx) => ctx.respond("Pong!")
+);
 
 const Main = Layer.effectDiscard(
 	Effect.gen(function* () {
-		const discord = yield* Discord;
-
-		yield* discord.registerSlashCommand({
-			command: new SlashCommandBuilder()
-				.setName("ping")
-				.setDescription("Replies with Pong!"),
-			execute: (interaction) =>
-				pipe(
-					Effect.tryPromise(() => interaction.reply("Pong!")),
-					Effect.catchAll(() =>
-						Effect.logError("Failed to reply to ping command."),
-					),
-				),
-		});
-
-		yield* discord.registerCommands();
-
-		yield* Effect.forkDaemon(discord.listen());
+		const gateway = yield* DiscordGateway;
+		yield* gateway.register(pingCommand)
+		yield* gateway.syncCommands
+		yield* gateway.connect();
 	}),
 );
 
@@ -44,7 +46,8 @@ const HttpLive = HttpLayerRouter.serve(
 ).pipe(Layer.provide(BunHttpServer.layer({ port: 3000 })));
 
 const AppLayer = Layer.mergeAll(Main, HttpLive).pipe(
-	Layer.provide(Discord.Default),
+	Layer.provide(DiscordGateway.Default),
+	Layer.provide(Socket.layerWebSocketConstructorGlobal),
 	Layer.provide([Otel.layer, Logger.structured]),
 );
 
