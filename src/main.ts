@@ -1,11 +1,15 @@
 import { HttpLayerRouter, HttpServerResponse, Socket } from "@effect/platform";
 import { BunHttpServer, BunRuntime } from "@effect/platform-bun";
 import { Effect, Layer, Logger } from "effect";
+import { BotLayerLive } from "./pkgs/dicord/bot-layer";
+import { DiscordEventCoordinator } from "./pkgs/dicord/coordinator";
 import {
 	type Command,
 	type CommandContext,
 	DiscordGateway,
-} from "./pkgs/dicord/discord-gateway";
+} from "./pkgs/dicord/gateway";
+import { DiscordHttp } from "./pkgs/dicord/http";
+import { DiscordCommandRegistry } from "./pkgs/dicord/registry";
 import type { SlashCommand } from "./pkgs/dicord/schemas";
 import { Otel } from "./pkgs/otel";
 
@@ -27,10 +31,23 @@ const pingCommand = defineCommand(
 
 const Main = Layer.scopedDiscard(
 	Effect.gen(function* () {
+		const http = yield* DiscordHttp;
 		const gateway = yield* DiscordGateway;
-		yield* gateway.register(pingCommand);
-		yield* gateway.syncCommands;
-		yield* Effect.forkDaemon(gateway.connect());
+		const registry = yield* DiscordCommandRegistry;
+		const coordinator = yield* DiscordEventCoordinator;
+
+		yield* registry.register(pingCommand);
+		yield* registry.syncWithDiscord;
+
+		const websocketUrl = yield* http.getWssUrl();
+		const url = new URL(websocketUrl)
+		url.searchParams.set("v", "10")
+		url.searchParams.set("encoding", "json")
+
+		yield* Effect.forkDaemon(
+			gateway.connect(url.toString()),
+		);
+		yield* Effect.forkDaemon(coordinator.start);
 	}),
 );
 
@@ -50,7 +67,7 @@ const HttpLive = HttpLayerRouter.serve(
 ).pipe(Layer.provide(BunHttpServer.layer({ port: 3000 })));
 
 const AppLayer = Layer.mergeAll(Main, HttpLive).pipe(
-	Layer.provide(DiscordGateway.Default),
+	Layer.provide(BotLayerLive),
 	Layer.provide(Socket.layerWebSocketConstructorGlobal),
 	Layer.provide([Otel.layer, Logger.structured]),
 );

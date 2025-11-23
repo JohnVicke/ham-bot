@@ -65,6 +65,7 @@ export class DiscordHttp extends Effect.Service<DiscordHttp>()("DiscordHttp", {
 						Schema.Struct({ url: Schema.String }),
 					),
 				),
+				Effect.map((b) => b.url)
 			);
 		});
 
