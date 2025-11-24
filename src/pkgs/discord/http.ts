@@ -7,15 +7,68 @@ import {
 import { Config, Data, Effect, Redacted, Schema } from "effect";
 import { SlashCommand } from "./schemas";
 
+export class EmbedField extends Data.Class<{
+	name: string;
+	value: string;
+	inline?: boolean;
+}> {}
+
+export class EmbedAuthor extends Data.Class<{
+	name: string;
+	url?: string;
+	icon_url?: string;
+}> {}
+
+export class EmbedFooter extends Data.Class<{
+	text: string;
+	icon_url?: string;
+}> {}
+
+export class EmbedImage extends Data.Class<{
+	url: string;
+}> {}
+
+export class Embed extends Data.Class<{
+	title?: string;
+	description?: string;
+	color?: number;
+	fields?: ReadonlyArray<EmbedField>;
+	thumbnail?: EmbedImage;
+	image?: EmbedImage;
+	footer?: EmbedFooter;
+	timestamp?: string;
+	author?: EmbedAuthor;
+	url?: string;
+}> {}
+
+// Update ChannelMessage to support embeds
 export class ChannelMessage extends Data.TaggedClass("ChannelMessage")<{
 	token: string;
 	interactionId: string;
-	content: string;
+	content?: string;
+	embeds?: ReadonlyArray<Embed>;
 }> {
 	get body() {
 		return {
 			type: 4,
-			data: { content: this.content },
+			data: { 
+				content: this.content,
+				embeds: this.embeds,
+			},
+		};
+	}
+}
+
+// New class for direct channel messages (no interaction)
+export class DirectChannelMessage extends Data.TaggedClass("DirectChannelMessage")<{
+	channelId: string;
+	content?: string;
+	embeds?: ReadonlyArray<Embed>;
+}> {
+	get body() {
+		return {
+			content: this.content,
+			embeds: this.embeds,
 		};
 	}
 }
@@ -115,6 +168,22 @@ export class DiscordHttp extends Effect.Service<DiscordHttp>()("DiscordHttp", {
 			);
 		});
 
-		return { syncCommands, respondToInteraction, editOriginalInteraction, getWssUrl } as const;
+		const sendChannelMessage = Effect.fn(function* (
+			channelId: string,
+			content: string,
+		) {
+			yield* HttpClientRequest.post(`/channels/${channelId}/messages`).pipe(
+				HttpClientRequest.bodyJson({ content }),
+				Effect.flatMap(client.execute),
+			);
+		});
+
+		return {
+			sendChannelMessage,
+			syncCommands,
+			respondToInteraction,
+			editOriginalInteraction,
+			getWssUrl,
+		} as const;
 	}),
 }) {}
