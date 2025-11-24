@@ -8,9 +8,9 @@ import {
 	Schedule,
 	Schema,
 } from "effect";
+import { TaggedStruct } from "../schema/tagged-struct";
 import { DiscordGatewayEventBus } from "./event-bus";
 import { Interaction, type SlashCommand } from "./schemas";
-import { TaggedStruct } from "../schema/tagged-struct";
 
 type SocketWriter = (
 	chunk: Uint8Array | string | Socket.CloseEvent,

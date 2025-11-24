@@ -122,7 +122,6 @@ const Match = Schema.Struct({
 export class PubgApi extends Effect.Service<PubgApi>()("PubgApi", {
 	dependencies: [FetchHttpClient.layer],
 	effect: Effect.gen(function* () {
-
 		const http = yield* HttpClient.HttpClient;
 		const apiKey = yield* Config.redacted("PUBG_API_KEY");
 

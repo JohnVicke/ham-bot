@@ -51,7 +51,7 @@ export class ChannelMessage extends Data.TaggedClass("ChannelMessage")<{
 	get body() {
 		return {
 			type: 4,
-			data: { 
+			data: {
 				content: this.content,
 				embeds: this.embeds,
 			},
@@ -60,7 +60,9 @@ export class ChannelMessage extends Data.TaggedClass("ChannelMessage")<{
 }
 
 // New class for direct channel messages (no interaction)
-export class DirectChannelMessage extends Data.TaggedClass("DirectChannelMessage")<{
+export class DirectChannelMessage extends Data.TaggedClass(
+	"DirectChannelMessage",
+)<{
 	channelId: string;
 	content?: string;
 	embeds?: ReadonlyArray<Embed>;
