@@ -4,8 +4,50 @@ import {
 	HttpClientRequest,
 	HttpClientResponse,
 } from "@effect/platform";
-import { Config, Effect, Redacted, Schema } from "effect";
+import { Config, Data, Effect, Redacted, Schema } from "effect";
 import { SlashCommand } from "./schemas";
+
+export class ChannelMessage extends Data.TaggedClass("ChannelMessage")<{
+	token: string;
+	interactionId: string;
+	content: string;
+}> {
+	get body() {
+		return {
+			type: 4,
+			data: { content: this.content },
+		};
+	}
+}
+
+export class DeferredChannelMessage extends Data.TaggedClass(
+	"DeferredChannelMessage",
+)<{
+	token: string;
+	interactionId: string;
+}> {
+	get body() {
+		return {
+			type: 5,
+		};
+	}
+}
+
+export class ModalMessage extends Data.TaggedClass("ModalMessage")<{
+	token: string;
+	interactionId: string;
+}> {
+	get body() {
+		return {
+			type: 9,
+		};
+	}
+}
+
+type InteractionMessage =
+	| ChannelMessage
+	| DeferredChannelMessage
+	| ModalMessage;
 
 export class DiscordHttp extends Effect.Service<DiscordHttp>()("DiscordHttp", {
 	dependencies: [FetchHttpClient.layer],
@@ -39,22 +81,26 @@ export class DiscordHttp extends Effect.Service<DiscordHttp>()("DiscordHttp", {
 			yield* client.execute(req);
 		});
 
-		const respondToInteraction = Effect.fn(function* (args: {
-			content: string;
-			token: string;
-			interactionId: string;
-		}) {
-			const res = yield* HttpClientRequest.post(
-				`/interactions/${args.interactionId}/${args.token}/callback`,
+		const respondToInteraction = Effect.fn(function* (
+			message: InteractionMessage,
+		) {
+			yield* HttpClientRequest.post(
+				`/interactions/${message.interactionId}/${message.token}/callback`,
 			).pipe(
-				HttpClientRequest.bodyJson({
-					type: 4,
-					data: { content: args.content },
-				}),
+				HttpClientRequest.bodyJson(message.body),
 				Effect.flatMap(client.execute),
 			);
+		});
 
-			console.log(res.status);
+		const editOriginalInteraction = Effect.fn(function* (
+			message: ChannelMessage,
+		) {
+			yield* HttpClientRequest.patch(
+				`/webhooks/${appId}/${message.token}/messages/@original`,
+			).pipe(
+				HttpClientRequest.bodyJson(message.body),
+				Effect.flatMap(client.execute),
+			);
 		});
 
 		const getWssUrl = Effect.fn(function* () {
@@ -65,10 +111,10 @@ export class DiscordHttp extends Effect.Service<DiscordHttp>()("DiscordHttp", {
 						Schema.Struct({ url: Schema.String }),
 					),
 				),
-				Effect.map((b) => b.url)
+				Effect.map((b) => b.url),
 			);
 		});
 
-		return { syncCommands, respondToInteraction, getWssUrl } as const;
+		return { syncCommands, respondToInteraction, editOriginalInteraction, getWssUrl } as const;
 	}),
 }) {}
