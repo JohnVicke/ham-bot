@@ -4,50 +4,51 @@ import {
 	HttpClientRequest,
 	HttpClientResponse,
 } from "@effect/platform";
-import { Config, Data, Effect, Redacted, Schema } from "effect";
+import { Config, Effect, Redacted, Schema } from "effect";
 import { SlashCommand } from "./schemas";
 
-export class EmbedField extends Data.Class<{
-	name: string;
-	value: string;
-	inline?: boolean;
-}> {}
+export class EmbedField extends Schema.Class<EmbedField>("EmbedField")({
+	name: Schema.String,
+	value: Schema.String,
+	inline: Schema.optional(Schema.Boolean),
+}) {}
 
-export class EmbedAuthor extends Data.Class<{
-	name: string;
-	url?: string;
-	icon_url?: string;
-}> {}
+export class EmbedAuthor extends Schema.Class<EmbedAuthor>("EmbedAuthor")({
+	name: Schema.String,
+	url: Schema.optional(Schema.String),
+	icon_url: Schema.optional(Schema.String),
+}) {}
 
-export class EmbedFooter extends Data.Class<{
-	text: string;
-	icon_url?: string;
-}> {}
+export class EmbedFooter extends Schema.Class<EmbedFooter>("EmbedFooter")({
+	text: Schema.String,
+	icon_url: Schema.optional(Schema.String),
+}) {}
 
-export class EmbedImage extends Data.Class<{
-	url: string;
-}> {}
+export class EmbedImage extends Schema.Class<EmbedImage>("EmbedImage")({
+	url: Schema.String,
+}) {}
 
-export class Embed extends Data.Class<{
-	title?: string;
-	description?: string;
-	color?: number;
-	fields?: ReadonlyArray<EmbedField>;
-	thumbnail?: EmbedImage;
-	image?: EmbedImage;
-	footer?: EmbedFooter;
-	timestamp?: string;
-	author?: EmbedAuthor;
-	url?: string;
-}> {}
+export class Embed extends Schema.Class<Embed>("Embed")({
+	title: Schema.optional(Schema.String),
+	description: Schema.optional(Schema.String),
+	color: Schema.optional(Schema.Number),
+	fields: Schema.optional(Schema.Array(EmbedField)),
+	thumbnail: Schema.optional(EmbedImage),
+	image: Schema.optional(EmbedImage),
+	footer: Schema.optional(EmbedFooter),
+	timestamp: Schema.optional(Schema.String),
+	author: Schema.optional(EmbedAuthor),
+	url: Schema.optional(Schema.String),
+}) {}
 
-// Update ChannelMessage to support embeds
-export class ChannelMessage extends Data.TaggedClass("ChannelMessage")<{
-	token: string;
-	interactionId: string;
-	content?: string;
-	embeds?: ReadonlyArray<Embed>;
-}> {
+export class ChannelMessage extends Schema.Class<ChannelMessage>(
+	"ChannelMessage",
+)({
+	token: Schema.String,
+	interactionId: Schema.String,
+	content: Schema.optional(Schema.String),
+	embeds: Schema.optional(Schema.Array(Embed)),
+}) {
 	get body() {
 		return {
 			type: 4,
@@ -60,13 +61,13 @@ export class ChannelMessage extends Data.TaggedClass("ChannelMessage")<{
 }
 
 // New class for direct channel messages (no interaction)
-export class DirectChannelMessage extends Data.TaggedClass(
+export class DirectChannelMessage extends Schema.Class<DirectChannelMessage>(
 	"DirectChannelMessage",
-)<{
-	channelId: string;
-	content?: string;
-	embeds?: ReadonlyArray<Embed>;
-}> {
+)({
+	channelId: Schema.String,
+	content: Schema.optional(Schema.String),
+	embeds: Schema.optional(Schema.Array(Embed)),
+}) {
 	get body() {
 		return {
 			content: this.content,
@@ -75,12 +76,12 @@ export class DirectChannelMessage extends Data.TaggedClass(
 	}
 }
 
-export class DeferredChannelMessage extends Data.TaggedClass(
+export class DeferredChannelMessage extends Schema.Class<DeferredChannelMessage>(
 	"DeferredChannelMessage",
-)<{
-	token: string;
-	interactionId: string;
-}> {
+)({
+	token: Schema.String,
+	interactionId: Schema.String,
+}) {
 	get body() {
 		return {
 			type: 5,
@@ -88,10 +89,10 @@ export class DeferredChannelMessage extends Data.TaggedClass(
 	}
 }
 
-export class ModalMessage extends Data.TaggedClass("ModalMessage")<{
-	token: string;
-	interactionId: string;
-}> {
+export class ModalMessage extends Schema.Class<ModalMessage>("ModalMessage")({
+	token: Schema.String,
+	interactionId: Schema.String,
+}) {
 	get body() {
 		return {
 			type: 9,
@@ -171,16 +172,56 @@ export class DiscordHttp extends Effect.Service<DiscordHttp>()("DiscordHttp", {
 		});
 
 		const sendChannelMessage = Effect.fn(function* (
-			channelId: string,
-			content: string,
+			message: DirectChannelMessage,
 		) {
-			yield* HttpClientRequest.post(`/channels/${channelId}/messages`).pipe(
-				HttpClientRequest.bodyJson({ content }),
+			yield* HttpClientRequest.post(
+				`/channels/${message.channelId}/messages`,
+			).pipe(
+				HttpClientRequest.bodyJson(message.body),
 				Effect.flatMap(client.execute),
 			);
 		});
 
+		const getGuildChannels = Effect.fn(function* (guildId: string) {
+			return yield* HttpClientRequest.get(`/guilds/${guildId}/channels`).pipe(
+				client.execute,
+				Effect.flatMap(
+					HttpClientResponse.schemaBodyJson(
+						Schema.Array(
+							Schema.Struct({
+								id: Schema.String,
+								name: Schema.String,
+								type: Schema.Number,
+							}),
+						),
+					),
+				),
+			);
+		});
+
+		const createChannel = Effect.fn(function* (
+			guildId: string,
+			name: string,
+			type: number = 0, // 0 = text channel
+		) {
+			return yield* HttpClientRequest.post(`/guilds/${guildId}/channels`).pipe(
+				HttpClientRequest.bodyJson({ name, type }),
+				Effect.flatMap(client.execute),
+				Effect.flatMap(
+					HttpClientResponse.schemaBodyJson(
+						Schema.Struct({
+							id: Schema.String,
+							name: Schema.String,
+							type: Schema.Number,
+						}),
+					),
+				),
+			);
+		});
+
 		return {
+			createChannel,
+			getGuildChannels,
 			sendChannelMessage,
 			syncCommands,
 			respondToInteraction,

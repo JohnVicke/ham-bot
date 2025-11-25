@@ -39,10 +39,11 @@ const HelloMessage = TaggedStruct("Hello", {
 	d: Schema.Struct({ heartbeat_interval: Schema.Number }),
 });
 
-const ReadyMessage = TaggedStruct("Ready", {
+export const ReadyMessage = TaggedStruct("Ready", {
 	t: Schema.Literal("READY"),
 	op: Schema.Literal(0),
 	d: Schema.Struct({
+		guilds: Schema.Array(Schema.Struct({ id: Schema.String })),
 		resume_gateway_url: Schema.String,
 		session_id: Schema.String,
 	}),
@@ -86,7 +87,14 @@ const OutboundMessage = Schema.Union(HeartbeatPayload, IdentifyPayload);
 
 type OutboundMessage = Schema.Schema.Type<typeof OutboundMessage>;
 
-export const GatewayEvent = Schema.Union(InteractionCreateMessage);
+export const GatewayEvent = Schema.Union(
+	InteractionCreateMessage,
+	ReadyMessage,
+);
+
+export type GatewayEventTypeToEvent = {
+	[T in GatewayEvent["_tag"]]: Extract<GatewayEvent, { _tag: T }>;
+};
 
 export type GatewayEvent = Schema.Schema.Type<typeof GatewayEvent>;
 
@@ -166,6 +174,12 @@ export class DiscordGateway extends Effect.Service<DiscordGateway>()(
 							)(text);
 
 							const isAuthenticated = yield* Ref.get(authenticated);
+
+							if (decoded._tag === "Ready") {
+								console.log(JSON.parse(text).d);
+								console.log("Gateway connected and ready", decoded.d.data);
+								yield* bus.publish(decoded);
+							}
 
 							if (decoded._tag === "Hello") {
 								yield* Effect.forkDaemon(
