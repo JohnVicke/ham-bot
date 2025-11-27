@@ -1,5 +1,5 @@
 import { Effect, Layer, Stream } from "effect";
-import type { GatewayEventTypeToEvent } from "../../gateway";
+import type { GatewayEventTypeToEvent } from "../../schemas";
 import { DiscordGatewayEventBus } from "../event-bus";
 
 export namespace InteractionSubscriber {

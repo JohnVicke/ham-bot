@@ -168,21 +168,19 @@ export class PubgApi extends Effect.Service<PubgApi>()("PubgApi", {
 		});
 
 		const getSeasonStats = (playerId: string, seasonId = "lifetime") =>
-			Effect.gen(function* () {
-				return yield* HttpClientRequest.get(
-					`/shards/${platform}/players/${playerId}/seasons/${seasonId}`,
-				).pipe(
-					client.execute,
-					Effect.flatMap(
-						HttpClientResponse.schemaBodyJson(
-							Schema.Struct({
-								data: SeasonStats,
-							}),
-						),
+			HttpClientRequest.get(
+				`/shards/${platform}/players/${playerId}/seasons/${seasonId}`,
+			).pipe(
+				client.execute,
+				Effect.flatMap(
+					HttpClientResponse.schemaBodyJson(
+						Schema.Struct({
+							data: SeasonStats,
+						}),
 					),
-					Effect.map((res) => res.data.attributes.gameModeStats["squad-fpp"]),
-				);
-			});
+				),
+				Effect.map((res) => res.data.attributes.gameModeStats["squad-fpp"]),
+			);
 
 		return { findPlayerByName, getSeasonStats } as const;
 	}),
