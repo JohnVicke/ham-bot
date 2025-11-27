@@ -8,9 +8,13 @@ import {
 	Schedule,
 	Schema,
 } from "effect";
-import { TaggedStruct } from "../schema/tagged-struct";
-import { DiscordGatewayEventBus } from "./event-bus";
-import { Interaction, type SlashCommand } from "./schemas";
+import { DiscordGatewayEventBus } from "./bus/event-bus";
+import {
+	InboundMessage,
+	type Interaction,
+	type OutboundMessage,
+	type SlashCommand,
+} from "./schemas";
 
 type SocketWriter = (
 	chunk: Uint8Array | string | Socket.CloseEvent,
@@ -34,80 +38,6 @@ export interface Command<Opts = unknown> {
 	readonly handler: CommandHandler<Opts>;
 }
 
-const HelloMessage = TaggedStruct("Hello", {
-	op: Schema.Literal(10),
-	d: Schema.Struct({ heartbeat_interval: Schema.Number }),
-});
-
-export const ReadyMessage = TaggedStruct("Ready", {
-	t: Schema.Literal("READY"),
-	op: Schema.Literal(0),
-	d: Schema.Struct({
-		guilds: Schema.Array(Schema.Struct({ id: Schema.String })),
-		resume_gateway_url: Schema.String,
-		session_id: Schema.String,
-	}),
-});
-
-const HeartbeatAckMessage = TaggedStruct("HeartbeatAck", {
-	op: Schema.Literal(11),
-});
-
-const GuildCreateMessage = TaggedStruct("GuildCreate", {
-	t: Schema.Literal("GUILD_CREATE"),
-	op: Schema.Literal(0),
-	d: Schema.Unknown,
-});
-
-const InteractionCreateMessage = TaggedStruct("InteractionCreate", {
-	t: Schema.Literal("INTERACTION_CREATE"),
-	op: Schema.Literal(0),
-	d: Interaction,
-});
-
-const HeartbeatPayload = TaggedStruct("Heartbeat", {
-	op: Schema.Literal(1),
-	d: Schema.Null,
-});
-
-const IdentifyPayload = TaggedStruct("Identify", {
-	op: Schema.Literal(2),
-	d: Schema.Struct({
-		token: Schema.String,
-		intents: Schema.Number,
-		properties: Schema.Struct({
-			os: Schema.String,
-			browser: Schema.String,
-			device: Schema.String,
-		}),
-	}),
-});
-
-const OutboundMessage = Schema.Union(HeartbeatPayload, IdentifyPayload);
-
-type OutboundMessage = Schema.Schema.Type<typeof OutboundMessage>;
-
-export const GatewayEvent = Schema.Union(
-	InteractionCreateMessage,
-	ReadyMessage,
-);
-
-export type GatewayEventTypeToEvent = {
-	[T in GatewayEvent["_tag"]]: Extract<GatewayEvent, { _tag: T }>;
-};
-
-export type GatewayEvent = Schema.Schema.Type<typeof GatewayEvent>;
-
-const InboundMessage = Schema.Union(
-	ReadyMessage,
-	HelloMessage,
-	GuildCreateMessage,
-	HeartbeatAckMessage,
-	InteractionCreateMessage,
-);
-
-export type InboundMessage = Schema.Schema.Type<typeof InboundMessage>;
-
 export class DiscordGateway extends Effect.Service<DiscordGateway>()(
 	"DiscordGateway",
 	{
@@ -129,6 +59,7 @@ export class DiscordGateway extends Effect.Service<DiscordGateway>()(
 
 			const identify = (writer: SocketWriter) =>
 				Effect.gen(function* () {
+					yield* Effect.log("sending identify payload");
 					yield* sendGatewayMessage(writer, {
 						_tag: "Identify",
 						op: 2,
@@ -146,6 +77,7 @@ export class DiscordGateway extends Effect.Service<DiscordGateway>()(
 
 			const startHeartbeat = (writer: SocketWriter, interval: number) =>
 				Effect.gen(function* () {
+					yield* Effect.log(`Starting heartbeat with interval ${interval}ms`);
 					yield* Effect.repeat(
 						Effect.gen(function* () {
 							yield* sendGatewayMessage(writer, {
@@ -176,8 +108,6 @@ export class DiscordGateway extends Effect.Service<DiscordGateway>()(
 							const isAuthenticated = yield* Ref.get(authenticated);
 
 							if (decoded._tag === "Ready") {
-								console.log(JSON.parse(text).d);
-								console.log("Gateway connected and ready", decoded.d.data);
 								yield* bus.publish(decoded);
 							}
 

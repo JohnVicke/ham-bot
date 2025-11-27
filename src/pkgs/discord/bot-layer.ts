@@ -1,6 +1,5 @@
 import { Layer } from "effect";
-import { DiscordEventCoordinator } from "./coordinator";
-import { DiscordGatewayEventBus } from "./event-bus";
+import { DiscordGatewayEventBus } from "./bus/event-bus";
 import { DiscordGateway } from "./gateway";
 import { DiscordHttp } from "./http";
 import { DiscordCommandRegistry } from "./registry";
@@ -10,5 +9,4 @@ export const BotLayerLive = Layer.mergeAll(
 	DiscordCommandRegistry.Default,
 	DiscordGateway.Default,
 	DiscordGatewayEventBus.Default,
-	DiscordEventCoordinator.Default,
 );
